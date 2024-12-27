@@ -1,0 +1,32 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.DS_Store
+
+# Test binary, built with `go test -c`
+*.test
+.env
+env-*.env
+!env-*-example.env
+# vault token file ingnore
+*.token
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+.idea
+README_local.md
+Makefile.local.mk
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+data/
+
+build/*
+!build/.gitkeep
+
+deploy/k8s_secrets/*.yaml
+deploy/helm/*/values_local.yaml
