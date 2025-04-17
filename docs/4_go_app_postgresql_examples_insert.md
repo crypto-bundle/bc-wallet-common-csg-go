@@ -42,6 +42,7 @@ package orders_data
 
 import (
 	"context"
+	"time"
 
 	commonPostgres "github.com/crypto-bundle/bc-wallet-common-lib-postgres/pkg/postgres"
 
@@ -53,33 +54,40 @@ type addressPoolDataStore struct {
 	e errorFormatterService
 }
 
-func (s *addressPoolDataStore) AddMultipleAddressPoolItems(ctx context.Context,
-	items []*entities.AddressPoolItem,
+func (s *addressPoolDataStore) AddAddressPoolItem(ctx context.Context,
+	item *entities.AddressPoolItem,
 ) error {
 	if err := s.dbConn.TryWithTransaction(ctx, func(stmt sqlx.Ext) error {
-		q := `
-        INSERT INTO "orders" ("uuid", "entity_uuid", "task_uuid",
-          "task_type", "status", 
-          "created_at", "updated_at")
-			  VALUES($1, $2, $3, $4, $5, $6, $7)
-        `
+	  now := time.Now()
 
-	  qResult, clbErr := stmt.Exec(q, 
-		  item.UUID, item.EntityUUID, item.TaskUUID,
-      item.TaskType, item.Status,
-      item.CreatedAt, item.UpdatedAt)
-	  if clbErr != nil {
-		  return s.e.ErrorOnly(clbErr, ErrUnableExecuteQuery.Error())
+	  const query = `
+			INSERT INTO address_pool
+				(address_uuid, 
+				 wallet_uuid, 
+				 blockchain_uuid, 
+				 address, 
+				 status, 
+				 created_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			RETURNING id;`
+
+	  row := stmt.QueryRowx(query,
+		  address.AddressUUID,
+		  address.WalletUUID,
+		  address.BlockchainUUID,
+		  address.Address,
+		  address.Status,
+		  now,
+	  )
+
+	  var addressID uint
+	  errTx := row.Scan(&addressID);
+	  if errTx != nil {
+		  return s.e.Error(errTx, "unable to insert address record")
 	  }
 
-	  affectedRows, clbErr := qResult.RowsAffected()
-	  if clbErr != nil {
-		    return s.e.ErrorOnly(clbErr, "unable to check query result - affected rows")
-	  }
-
-	  if affectedRows == 0 {
-		  return s.e.ErrorOnly(ErrHaveNoAffectedRows)
-	  }
+	  address.ID = addressID
+	  address.CreatedAt = now
 
 		return nil
 	}); err != nil {
