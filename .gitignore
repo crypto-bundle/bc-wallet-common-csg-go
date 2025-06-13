@@ -17,6 +17,9 @@ env-*.env
 *.out
 
 .idea
+.agents
+.qwen
+
 README_local.md
 Makefile.local.mk
 
