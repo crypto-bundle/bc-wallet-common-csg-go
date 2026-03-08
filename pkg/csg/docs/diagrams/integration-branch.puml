@@ -1,0 +1,93 @@
+@startuml
+' This UML source uses PlantUML format.
+' https://plantuml.com/sequence-diagram for syntax details.
+!theme minty
+master -> feature
+'help themes
+
+' Optional styles
+'skinparam monochrome reverse
+skinparam backgroundColor white
+skinparam SequenceMessageAlign direction
+skinparam shadowing false
+'skinparam handwritten true
+skinparam roundcorner 30
+autonumber
+
+title GreenPay git-flow
+
+participant master
+participant release
+participant develop
+participant "GPAY-123" as task
+
+== Начало работы над задачей ==
+
+master -> feature: create a branch as a fork from "master"
+feature -> task: create a branch as a fork from feature branch
+task -> task: push commits locally, technical commits allowed
+
+
+== Основная работа закончена, отдаем на код-ревью ==
+
+task -> feature: PR with rebase (squash on github)
+note right of feature
+	Rebase (squash) is optional for history cleanup.
+	Try to avoid technical comimits in feature branch.
+	Only useful "feature" commits should be passed.
+
+	Unit developers should approve
+	the changes to feature branch.
+end note
+
+
+== Move to QA on unit ==
+
+feature -> release99: merge
+
+note right of release99
+	For tests on unit
+	you could push feature branch
+	directly to "release99".
+end note
+
+
+== Optional debugging on unit ==
+
+release99 -> release99: optional technical commits & pushes
+
+note right of release99
+	Any technical commits for debugging allowed.
+	Direct pushes without PRs.
+end note
+
+
+== The case when more commits should be added to task ==
+
+task -> task: commit & push
+task -> feature: PR to task
+feature -> release99: merge and test again
+
+note right of feature
+	The important thing is that "release99"  **must not** be merged to
+	any other branches! It only accepts merges for testing on unit env.
+end note
+
+== Optional cleanup unit for testing another feature ==
+
+master -> release99: replace with master after for branch cleanup
+
+note left of release99
+	At this point we get clean "release99"
+	that could be used for other features testing.
+
+	But this way could be dangerous
+	for migrations consistency :|
+end note
+
+== Release the feature ==
+
+feature -> develop: merge with PR (no rebase allowed!)
+develop -> master: merge for new release (no rebase allowed!)
+
+@enduml
