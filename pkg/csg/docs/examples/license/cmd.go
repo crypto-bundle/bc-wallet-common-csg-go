@@ -1,7 +1,7 @@
 package license
 
 /**
- * Copyright (C) 2025 GreenPay Limited - All Rights Reserved
+ * Copyright (C) 2025 crypto-bundle Limited - All Rights Reserved
  *
  * This source code is protected under international copyright law.  All rights
  * reserved and protected by the copyright holders.
