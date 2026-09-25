@@ -14,12 +14,12 @@ skinparam shadowing false
 skinparam roundcorner 30
 autonumber
 
-title GreenPay git-flow
+title crypto-bundle git-flow
 
 participant master
 participant release
 participant develop
-participant "GPAY-123" as task
+participant "crypto-bundle-123" as task
 
 == Начало работы над задачей ==
 

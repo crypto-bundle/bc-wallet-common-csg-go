@@ -1,51 +1,46 @@
-/* Package csg предоставляет доступ к Code Style Guide (CSG) проекта crypto-bundle
- * через встроенную файловую систему (Go Embed).
+/* Package csg provides access to the Code Style Guide (CSG) of the crypto-bundle project
+ * through an embedded filesystem (Go Embed).
  *
- * CSG — это коллекция правил и рекомендаций по разработке Go-приложений в рамках
- * проекта GreenPayment / crypto-bundle. Он включает соглашения по архитектуре,
- * обработке ошибок, конфигурации, работе с PostgreSQL, NATS, HTTP, gRPC,
- * а также правила Git-flow, настройки tooling и структуры репозиториев.
+ * CSG is a collection of rules and recommendations for developing Go applications within
+ * the GreenPayment / crypto-bundle project. It includes conventions for architecture,
+ * error handling, configuration, PostgreSQL, NATS, HTTP, gRPC usage,
+ * as well as Git-flow rules, tooling settings, and repository structures.
  *
- * # Назначение пакета
+ * # Purpose
  *
- * Пакет csg обеспечивает, что каждый разработчик всегда имеет под рукой
- * актуальную версию Code Style Guide вместе с бинарником приложения,
- * собранного на основе этой библиотеки. Это достигается через механизм
- * go:embed, который инкорпорирует все файлы документации и инструкций
- * прямо в компилируемый байткод.
+ * The csg package ensures that every developer always has the latest
+ * version of the Code Style Guide alongside the application binary built
+ * using this library. This is achieved through the go:embed mechanism, which incorporates
+ * all documentation and instruction files
+ * directly into the compiled bytecode.
  *
- * # Структура документов
+ * # Document Structure
  *
- * Встроенные данные включают следующие разделы CSG:
- *   - Настройка окружения (setup) — конфигурация Git
- *   - Git Flow — правила ветвления и работы с PR
- *   - ToolKit — набор библиотек и утилит проекта
- *   - Repository Layouts — структура директорий и файлов
- *   - App Development — правила написания Go-кода (архитектура, ошибки, конфиг, БД, HTTP, gRPC, NATS, Processing)
- *   - Процессы — периметры ответственности
- *   - Диаграммы — интеграционные диаграммы
- *   - Примеры — примеры лицензирования и конфигурационных файлов
+ * The embedded data includes the following CSG sections:
+ *   - Environment Setup (setup) — Git configuration
+ *   - Git Flow — branching rules and PR workflow
+ *   - ToolKit — set of project libraries and utilities
+ *   - Repository Layouts — directory and file structure
+ *   - App Development — Go coding rules (architecture, errors, config, DB, HTTP, gRPC, NATS, Processing)
+ *   - Processes — scope boundaries
+ *   - Diagrams — integration diagrams
+ *   - Examples — licensing and configuration file examples
  *
- * # Проверка целостности
+ * # How to Read CSG
  *
- * Используйте функцию Validate() для проверки наличия всех обязательных
- * документов во встроенной файловой системе. Это позволяет обнаруживать
- * проблемы на старте приложения:
+ * This package ships with complete documentation embedded into the binary via Go Embed.
  *
- *	import "github.com/crypto-bundle/bc-wallet-common-csg-go/pkg/csg"
+ * AGENTS.md in the same directory contains a condensed summary of the main rules
+ * and recommendations for quick reference. The full text of each document
+ * is accessible through the EFS at path `pkg/csg/docs/`.
  *
- *	func main() {
- *	    if err := csg.Validate(); err != nil {
- *	        log.Fatalf("csg validation failed: %v", err)
- *	    }
- *	    // ... запуск приложения
- *	}
+ * For programmatic work with the documentation, use the methods exported as Public API:
+ * ListDocFiles(prefix) — get the list of all documents with an optional filter
+ * FileContent(path)    — read the contents of any file
+ * WalkDoc(fn)          — traverse all documents recursively
  *
- * # Рекомендации для AI-агентов
- *
- * При генерации кода агент обязан соблюдать правила CSG. Краткие инструкции
- * доступны в AGENTS.md, встроенном в ту же директорию. Полный текст CSG
- * доступен через EFS из любого раздела docs/*.
+ * Each section in pkg/csg/docs/ describes a separate aspect of development in the project.
+ * Start reading from overview.md or from the app-development/overview.md section.
  */
 
 package csg
