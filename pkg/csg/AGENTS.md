@@ -1,42 +1,16 @@
 # Рекомендации для AI-агентов при работе с CSG
 
-## Навигация по документации (`docs/`)
+## Навигация по документации (`pkg/csg/docs/`)
 
-- [app-development](./docs/app-development/) — Общие правила Go
-  - [overview](./docs/app-development/overview.md) — Обзор архитектуры приложения
-- [setup](./docs/setup/)
-  - [git_setup](./docs/setup/git_setup.md) — Настройка Git
-- [git-flow](./docs/git-flow/)
-  - [git_flow](./docs/git-flow/git_flow.md) — Правила работы с Git
-- [toolkit](./docs/toolkit/)
-  - [overview](./docs/toolkit/overview.md) — Обзор ToolKit
-  - [copywrite](./docs/toolkit/copywrite.md) — Copywrite
-  - [golangci-lint](./docs/toolkit/golangci-lint.md) — GolangCI Lint
-  - [migrator](./docs/toolkit/migrator.md) — Migrator
-- [review](./docs/review/)
-  - [github_code_review](./docs/review/github_code_review.md) — GitHub Code Review
-- [repository-layouts](./docs/repository-layouts/)
-  - [overview](./docs/repository-layouts/overview.md) — Обзор структурных правил
-  - [app/code](./docs/repository-layouts/app/code.md) — Код приложения
-  - [app/deployment](./docs/repository-layouts/app/deployment.md) — Деплоймент
-  - [migrations/index](./docs/repository-layouts/migrations/index.md) — Миграции БД
-  - [configuration-files](./docs/repository-layouts/configuration-files.md) — Конфигурационные файлы
-  - [linters](./docs/repository-layouts/linters.md) — Линтеры
-  - [builders](./docs/repository-layouts/builders.md) — Билд-скрипты
-  - [cicd](./docs/repository-layouts/cicd.md) — CI/CD
-  - [license](./docs/repository-layouts/license.md) — Лицензирование
-  - [documentation](./docs/repository-layouts/documentation.md) — Документация
-- [processes](./docs/processes/)
-  - [perimeter_rules](./docs/processes/perimeter_rules.md) — Периметры ответственности
-- [diagrams](./docs/diagrams/)
-  - [integration-branch.puml](./docs/diagrams/integration-branch.puml) — Integration Branch
-- [examples](./docs/examples/)
-  - [license](./docs/examples/license/) — License Example
-    - [README](./docs/examples/license/README.md)
-    - [cmd.go](./docs/examples/license/cmd.go)
-    - [LICENSE.txt](./docs/examples/license/LICENSE.txt)
-  - [env](./docs/examples/env/) — Env Example
-    - [env-hdwallet-controller-manager-api-example.env](./docs/examples/env/env-hdwallet-controller-manager-api-example.env)
+- [app-development](./docs/app-development/) — Архитектура Go-приложения, обработка ошибок, конфигурация, работа с БД, gRPC, HTTP, NATS
+- [setup](./docs/setup/) — Настройка окружения разработчика и базовые требования к среде разработки
+- [git-flow](./docs/git-flow/) — Правила ветвления, оформления PR'ов и работы с Git в проекте
+- [toolkit](./docs/toolkit/) — Обзор утилит и библиотек проекта: копиррайт, линтеры, миграции
+- [review](./docs/review/) — Процедуры code review, включая GitHub Code Review
+- [repository-layouts](./docs/repository-layouts/) — Структура репозитория: код, деплоймент, миграции, конфиги, CI/CD, линтеры, лицензии
+- [processes](./docs/processes/) — Процессы разработки, периметры ответственности команд и зон
+- [diagrams](./docs/diagrams/) — Диаграммы интеграций, включая интеграционные ветки (Integration Branch)
+- [examples](./docs/examples/) — Примеры файлов проекта: LICENSE, .env, другие boilerplate-шаблоны
 
 ---
 **Цель**: Инструкция по соблюдению Code Style Guide (CSG) при генерации кода
@@ -48,7 +22,88 @@
 
 CSG распространяется по нескольким каналам:
 - Как отдельный репозиторий с документацией внутри `./docs/` (внутри пакета `pkg/csg/`)
-- Как go-модуль содержащий в себе документацию для конечного потребителя - разработчика который импортирует ее ка зависимость в проект
+- Как go-модуль, содержащий в себе документацию для конечного потребителя — разработчика, который импортирует её как зависимость в проект
+
+## Использование в проекте
+
+Для подключения CSG как зависимости к своему проекту выполните:
+
+```bash
+go get github.com/crypto-bundle/bc-wallet-common-csg-go/pkg/csg@latest
+```
+
+Затем добавьте blank-import в `main.go`, чтобы убедиться, что embedded docs были инициализированы:
+
+```go
+package main
+
+import (
+	_ "github.com/crypto-bundle/bc-wallet-common-csg-go/pkg/csg"
+)
+
+func main() {
+	// ...
+}
+```
+
+После этого документация будет доступна внутри скомпилированного бинарного файла(для developement сборки) через встроенную файловую систему (Go Embed). Для программной работы используйте публичный API пакета: `ListDocFiles`, `FileContent`, `WalkDoc`.
+
+### Embed для dev-сборки (`//go:embed` + build tag `development`)
+
+Файлы документации из каталога `docs/` подключаются через `//go:embed` только при разработке приложения. В продакшен-сборке они не включаются в бинарник — для их чтения используется прямая работа с ФС проекта или пакетный API. Для разделения сборок применяется build-тег `development`:
+
+```go
+//go:build development
+
+package main
+
+import (
+    "embed"
+)
+
+//go:embed docs
+var embeddedDocs embed.FS
+```
+
+При сборке без тега (production):
+
+```bash
+go build -tags production .
+```
+
+Embed-инструкции не будут выполнены, а переменная `embeddedDocs` останется пустой. В этом случае приложение опирается на публичный API пакета `csg`: `ListDocFiles`, `FileContent`, `WalkDoc`.
+
+### Запуск csgRunnerService только для dev-сборки
+
+Сервис-компонент `csgRunnerService` (и его реализация `csgService`) предназначен для разработки и отладки. Он **не должен запускаться** в production-сборках. При инициализации приложения проверяйте окружение через `baseConfigService.IsDev()` / `baseConfigService.IsProd()`:
+
+```go
+package main
+
+import (
+    "context"
+
+    "github.com/crypto-bundle/bc-wallet-common-csg-go/pkg/csg"
+    csgTypes "github.com/crypto-bundle/bc-wallet-common-csg-go/pkg/csg/types"
+)
+
+func main() {
+    // ... получение зависимостей loggerSvc, configSvc, errorFmtSvc ...
+
+    csgSvc := csg.New(configSvc, errorFmtSvc, loggerSvc)
+
+    if configSvc.IsDev() {
+        // Запускаем только в dev-режиме
+        go func() {
+            if err := csgSvc.Run(context.Background()); err != nil {
+                // логирование ошибки
+            }
+        }()
+    }
+}
+```
+
+При вызове `Run(ctx)` в dev-режиме происходит вывод краткой справки по доступным документам CSG. Это полезно для навигации разработчика во время локальной разработки.
 
 ## Основные принципы
 
