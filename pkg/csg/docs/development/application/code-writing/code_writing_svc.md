@@ -73,7 +73,7 @@
 ### Правила
 
 1. Важен порядок передаваемых аргументов:
-    1. Нулевой приоритет: экзепляр контекста - `ctx context.Context`
+    1. Нулевой приоритет: экзепляр контекста - `ctx context.Context`. Стандартно не передаем, но если необходим, то он впереди всех.
     1. Первый приоритет: "служебные" зависимости - экземпляры конфигов, логгеры, и тому подобное.
     1. Второй приоритет: - инфраструктурые зависимости - экземпляр клиента базы данных, клиент к redis, http или gRPC клиенты, и тому подобное
     1. Третий приоритет: логические зависимости для работы бизнес-логики - 
@@ -89,8 +89,14 @@
     - Описания factory-функции при передаче параметров
     - Создании экземпляра Go-структуры
 1. Обязательная проверка на `nil`. Задача "factory-функции" - не пропустить пустую зависимость что бы исключить панику(go panic) при работе сервис-компонента
-1. Возвращаем всегда указатель на экземплряр структуры
+1. Возвращаем всегда указатель на экземпляр структуры
 1. Паредаваемые зависимости в factory-функцию должны имплементировать определенный на уровне пакета интерфейс
+1. Стадия инициализации на `Init(ctx context.Context) error`
+1. Стадия запуска на `Run(ctx context.Context) error`
+1. Завершение работы обязательно по завершению работы (отмены) контекста ранее передаваемого в `Run(ctx context.Context) error`
+1. Мониторинг состояния внутри сервис-компонента, но сохранение в другой. Если сервис-компонент содержит параметры состояния применимые к метрикам или отчету о состоянии приложения, то для их опроса необходимо:
+    - Использовать возможности библиотеки `bc-wallet-common-lib-healthcheck`
+    - Использовать для сохранения состояния промежуточный сервис-компонент (подробнее в `bc-wallet-common-lib-healthcheck`)
 
 ### Пример
 
@@ -100,14 +106,15 @@
 
 var ErrMissingSvcDependencies = errors.New("missing service-componenct dependency")
 
-type httpHealthChecker struct {
+type httpUserPermissionsHandler struct {
     l *slog.Logger                  // Правило для экономии длины строк в коде - "l" для logger
 	e errorFormatterService         // Правило для экономии длины строк в коде - "e" для error-formatter
     cfgSvc configService
 
     redisConn *redis.Connection
 
-    probesSvc healthCheckProbeService
+    userRepoReaderSvs userRepoReaderService
+    userRepoWriterSvs userRepoWriterService
 }
 
 func NewHTTPHealthCheckerService(                   // Первая строка пустая всегда
@@ -117,7 +124,8 @@ func NewHTTPHealthCheckerService(                   // Первая строка
     // Пустая строка отделяет категории зависимостей - далее идут инфраструктурные зависимости
     redisConnection *redis.Connection,              // Здесь начинается приоритет инфраструктурных зависимостей
     // Пустая строка отделяет категории зависимостей - далее идут логические зависмости
-    healthCheckProbeSvc healthCheckProbeService,    // Здесь начинается приоритет бизнес-зависимостей
+    userRepoReaderSvs userRepoReaderService,
+    userRepoWriterSvs userRepoWriterService
 ) *httpHealthChecker {
     if errFmtSvc == nil { // Обязательная проверка на nil каждой зависимости
         return fmt.Errorf("health checker: %w: %s", 
@@ -136,8 +144,12 @@ func NewHTTPHealthCheckerService(                   // Первая строка
         return errFmtSvc.Error(ErrMissingSvcDependencies, "missing redis connection") // здесь уже для форматирования используем error-formatter
     }
 
-    if probesSvc == nil { // Обязательная проверка на nil каждой зависимости
-        return errFmtSvc.Error(ErrMissingSvcDependencies, "missing probe worker") // здесь уже для форматирования используем error-formatter
+    if userRepoReaderSvs == nil { // Обязательная проверка на nil каждой зависимости
+        return errFmtSvc.Error(ErrMissingSvcDependencies, "missing data repository reader service component")
+    }
+
+    if userRepoReaderSvs == nil { // Обязательная проверка на nil каждой зависимости
+        return errFmtSvc.Error(ErrMissingSvcDependencies, "missing data repository reader service component")
     }
 
     return &httpHealthChecker{ // всегда возвращаем указатель на структу, исключение для паттерна "Простая фабрика / Фабричный метод
@@ -146,11 +158,14 @@ func NewHTTPHealthCheckerService(                   // Первая строка
         // Пустая строка отделяет категории зависимостей - далее идут инфраструктурные зависимости
         redisConn: redisConnection,
         // Пустая строка отделяет категории зависимостей - далее идут логические зависмости
-        healthCheckProbeSvc: healthCheckProbeSvc
+        userRepoReaderSvs: userRepoReaderService,
+        userRepoWriterSvs: userRepoWriterService
 	}
 }
 ```
 
 ### Жизненный цикл
+
+Разные сервис-компоненты могут иметь разный жизненный цикл, но базовые правила для них существуют в виде
 
 ## Примеры

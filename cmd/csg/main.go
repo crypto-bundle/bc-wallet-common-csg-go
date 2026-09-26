@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	if err := csg.Validate(); err != nil {
+	if err := csg.(); err != nil {
 		fmt.Fprintf(os.Stderr, "CSG validation failed: %v\n", err)
 		os.Exit(1)
 	}
