@@ -117,6 +117,10 @@ func main() {
 - Структура пакетов: один сервис-компонент = одна или несколько связанных таблиц/доменов
 - main.go — минимальная точка входа, собирает конфиг через embedding
 - File structure: следовать правилам из [`docs/app-development/architecture/file_structure.md`](./docs/app-development/architecture/file_structure.md)
+- Сервис-компоненты: паттерн Service-Component определён в [`docs/development/application/code-writing/code_writing_svc.md`](./docs/development/application/code-writing/code_writing_svc.md):
+  - [Названия factory-функций](./docs/development/application/code-writing/factory_function_naming.md)
+  - [Инъекция зависимостей](./docs/development/application/code-writing/dependency_injection_rules.md)
+  - [Жизненный цикл сервис-компонента](./docs/development/application/code-writing/service_component_lifecycle.md)
 
 ## Ошибки
 
@@ -132,6 +136,26 @@ func main() {
 - Все Go-структуры конфига собирать в одну через embedding
 - Получение данных только через `Get` методы, прямое обращение к полям недопустимо
 - Методы подготовки: `Prepare()`, `PrepareWith(...interface{})`
+
+## gRPC
+
+- Сервер и клиент только на `bc-wallet-common-lib-grpc` — базис из `DefaultServeOptions()` / `DefaultDialOptions()`, самодельные keepalive-политики запрещены
+- Лимиты сообщений — из констант библиотеки, без магических чисел
+- Межсервисные вызовы — через `LazyConnection` (один на target, живёт в DI, `Close` на shutdown)
+- Ретраи — только дефолтные (`3` попытки, `Aborted`/`Unavailable`), расширять набор кодов нельзя
+- Балансировка — balancer `round_robin_crypto_bundle` + DNS SRV (`pkg/dns` + `pkg/client/dialer/net`); локальные сайдкары — unix-socket dialer с ротацией
+- Health: каждый сервер регистрирует `grpc.health.v1.Health`; перед `GracefulStop` — `health.Shutdown()`; health-методы вне авторизации; клиентские `Check` — только в gate-местах
+- Хэндлеры: пакет `internal/grpc/handlers`, common.go (структура/factory/интерфейсы) + файл на proto-метод (`handler_*.go`, `marshaller_*.go`); один сервис-компонент на proto-сервис; регистрация только на этапе сборки app; тело метода — валидация → бизнес-вызов → маппинг ошибок в `status`
+- Документы:
+  - [gRPC-сервер](./docs/development/application/grpc/server.md)
+  - [gRPC-клиент](./docs/development/application/grpc/client.md)
+  - [Dialer'ы и балансировка](./docs/development/application/grpc/client_dialing_balancing.md)
+  - [Health check сервера](./docs/development/application/grpc/server_healthcheck.md)
+  - [Health check клиента](./docs/development/application/grpc/client_healthcheck.md)
+  - [Обработка запросов. Хэндлеры](./docs/development/application/grpc/request_handling.md)
+  - [HTTP-сервер: правила создания и жизненного цикла](./docs/development/application/http/server.md)
+  - [HTTP-клиент: правила resty v2](./docs/development/application/http/client.md)
+  - [HTTP-хэндлеры: обработка запросов](./docs/development/application/http/handlers.md)
 
 ## ToolKit Libraries
 

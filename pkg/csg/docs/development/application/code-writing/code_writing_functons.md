@@ -181,7 +181,7 @@ search:
 **7.1 Пустая строка после закрывающей скобки блока.**
 После каждого блока, ограничивающего зону видимости (`{` … `}`), **всегда** ставится пустая строка перед следующим фрагментом кода. Это относится ко всем операторам, создающим блок: `if`, `else if`, `else`, `for`, `switch`, `select`.
 
-Это единственное правило, которое LLM最容易 нарушать — потому что закрывающая `}` визуально сливается с последующей строкой. Запомните: **после `}` всегда пустая строка, если только за ней не следует `else`, `)`, `,` или конец функции**.
+Это единственное правило, которое можно нарушать — потому что закрывающая `}` визуально сливается с последующей строкой. Запомните: **после `}` всегда пустая строка, если только за ней не следует `else`, `)`, `,` или конец функции**.
 
 ```go
 // BAD: Неправильно — нет пустой строки после }
@@ -223,7 +223,49 @@ func Process(data []byte) error {
 }
 ```
 
-**7.2 Пустая строка между смысловыми блоками.**
+**7.2 Пустая строка перед `return` внутри блока `if` / `else`.**
+Если `return` — **единственный** оператор в теле блока `if`, `else if` или `else`, отбивка пустой строкой перед ним **не требуется**. Это правило особенно актуально для guard-паттернов, где каждая ветка содержит один быстрый возврат. Если же в блоке есть дополнительные операторы перед `return` (присваивание, вызов функции, логирование), отбивка становится обязательной:
+
+```go
+// GOOD: return единственный оператор в каждом блоке if/else — без пустых строк перед return
+func Validate(input Input) error {
+    if input.Name == "" {
+        return ErrEmptyName
+    }
+
+    if !input.Valid {
+        return ErrInvalid
+    }
+
+    if input.Expired {
+        return ErrExpired
+    }
+
+    return process(input) // return на уровне функции — всегда с отбивкой
+}
+
+// BAD: Неправильно — пустые строки там, где они не нужны
+func BadValidate(input Input) error {
+    if input.Name == "" {
+
+        return ErrEmptyName
+    }
+
+    if !input.Valid {
+
+        return ErrInvalid
+    }
+
+    if input.Expired {
+
+        return ErrExpired
+    }
+
+    return process(input)
+}
+```
+
+**7.3 Пустая строка между смысловыми блоками.**
 Отдельные операции внутри одного блока (присваивания, вызовы функций) могут идти подряд без пустых строк. Однако каждый новый *смысловой этап* (проверка, трансформация, возврат) выделяется пустой строкой. Типичные границы:
 
 - Проверка ошибки → присваивание
@@ -256,6 +298,63 @@ func HandleRequest(req Request) (*Response, error) {
         Result:  result,
         Version: version,
     }, nil
+}
+```
+
+**7.4 Пустая строка перед `case` / `default` и `return` внутри `switch` / `select`.**
+
+Каждый блок `case` и `default` обязательно предваряется пустой строкой относительно предыдущего блока кода или другого блока `case`/`default`. Это правило **не имеет исключений**.
+
+Внутри блока `case` / `default` отбивка пустой строкой перед `return` требуется **только если в блоке более одной строки кода**. Если `return` — единственный оператор в `case`/`default`, отбивка не нужна:
+
+```go
+// GOOD: switch — каждый case отделён пустой строкой; return с отбивкой только при >1 строки
+func StatusLabel(code int32) string {
+    switch code {
+    case StatusCodeOK:
+        return "ok" // return единственный оператор — без пустой строки
+
+    case StatusCodePending:
+        return "pending"
+
+    case StatusCodeFailed:
+        log.Warn("unexpected failed code", code)
+
+        return "failed" // return после оператора — отбивка обязательна
+    }
+
+    return "unknown" // default-case «вне switch» — на уровне функции, отбивка всегда
+}
+
+// BAD: Неправильно — нет разделителя между case, нет отбивки перед финальным return
+func BadStatusLabel(code int32) string {
+    switch code {
+    case StatusCodeOK:
+        return "ok"
+    case StatusCodePending: // нет пустой строки перед case
+        return "pending"
+    case StatusCodeFailed:
+        log.Warn("unexpected failed code", code)
+        return "failed" // есть лог, но нет отбивки перед return
+    }
+    return "unknown" // нет отбивки перед return на уровне функции
+}
+
+// GOOD: select — каждый case/select отделён, те же правила для return
+func Listen(ctx context.Context, ch <-chan Event) error {
+    for {
+        select {
+        case event := <-ch:
+            process(event)
+
+            continue // операция перед continue — отбивка обязательна
+        case <-ctx.Done():
+            return ctx.Err() // return единственный в case — без пустой строки
+
+        case <-time.After(timeout):
+            return ErrTimeout
+        }
+    }
 }
 ```
 
